@@ -1,0 +1,78 @@
+https://plrsig.ht/3aGxxrr
+
+gcloud config set project <Project ID>
+terraform --version
+mkdir tfinfra
+cd tfinfra
+gsutil file createnew provider.tf 2000
+echo "provider "google" {}" >> provider.tf
+terraform init
+gsutil file createnew mynetwork.tf 2000
+echo "# Create the mynetwork network" >> mynetwork.tf
+echo "resource "google_compute_network" "mynetwork" {" >> mynetwork.tf
+echo "name = "mynetwork" ">> mynetwork.tf
+echo "#RESOURCE properties go here" >> mynetwork.tf
+echo "auto_create_subnetworks = "true"" >> mynetwork.tf
+echo "# Add a firewall rule to allow HTTP, SSH, RDP and ICMP traffic on " >> mynetwork.tf
+echo "mynetwork" >> mynetwork.tf
+echo "resource "google_compute_firewall" "mynetwork-allow-http-ssh-rdp-icmp" {" >> mynetwork.tf
+echo "name = "mynetwork-allow-http-ssh-rdp-icmp"" >> mynetwork.tf
+echo "#RESOURCE properties go here" >> mynetwork.tf
+echo "network = google_compute_network.mynetwork.self_link" >> mynetwork.tf
+echo "allow {" >> mynetwork.tf
+echo "    protocol = "tcp"" >> mynetwork.tf
+echo "    ports    = ["22", "80", "3389"]" >> mynetwork.tf
+echo "    }" >> mynetwork.tf
+echo "allow {" >> mynetwork.tf
+echo "    protocol = "icmp"" >> mynetwork.tf
+echo "    }" >> mynetwork.tf
+echo "}" >> mynetwork.tf
+mkdir instance
+cd instance
+gsutil file createnew main.tf 2000
+echo "variable "instance_name" {}" {" >> main.tf
+echo "variable "instance_zone" {}" >> main.tf
+echo "variable "instance_type" {" >> main.tf
+echo "  default = "n1-standard-1"" >> main.tf
+echo   }" >> main.tf
+echo "variable "instance_network" {}" >> main.tf
+echo "resource "google_compute_instance" "vm_instance" {" >> main.tf
+echo "  name         = "${var.instance_name}"" >> main.tf
+echo "  zone         = "${var.instance_zone}"" >> main.tf
+echo "  machine_type = "${var.instance_type}"" >> main.tf
+echo "  boot_disk {" >> main.tf
+echo "    initialize_params {" >> main.tf
+echo "      image = "debian-cloud/debian-9"" >> main.tf
+echo "      }" >> main.tf
+echo "  }" >> main.tf
+echo "  network_interface {" >> main.tf
+echo "    network = "${var.instance_network}"" >> main.tf
+echo "    access_config {" >> main.tf
+echo "      # Allocate a one-to-one NAT IP to the instance" >> main.tf
+echo "    }" >> main.tf
+echo "  }" >> main.tf
+echo "}" >> main.tf
+cd ..
+echo "# Create the mynet-us-vm instance" >> mynetwork.tf
+echo "module "mynet-us-vm" {" >> mynetwork.tf
+echo "  source           = "./instance"" >> mynetwork.tf
+echo "  instance_name    = "mynet-us-vm"" >> mynetwork.tf
+echo "  instance_zone    = "us-central1-a"" >> mynetwork.tf
+echo "  instance_network = google_compute_network.mynetwork.self_link" >> mynetwork.tf
+echo "}" >> mynetwork.tf
+echo "# Create the mynet-eu-vm" instance" >> mynetwork.tf
+echo "module "mynet-eu-vm" {" >> mynetwork.tf
+echo "  source           = "./instance"" >> mynetwork.tf
+echo "  instance_name    = "mynet-eu-vm"" >> mynetwork.tf
+echo "  instance_zone    = "europe-west1-d"" >> mynetwork.tf
+echo "  instance_network = google_compute_network.mynetwork.self_link" >> mynetwork.tf
+echo "}" >> mynetwork.tf
+terraform fmt
+terraform init
+terraform plan
+terraform apply
+yes
+gcloud network management info
+gcloud compute instances info
+gcloud compute instances mynet-us-vm init
+ping -c 3 <Enter mynet-eu-vm's internal IP here>

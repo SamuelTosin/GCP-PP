@@ -1,0 +1,73 @@
+https://plrsig.ht/2KCqsgT
+
+gcloud config set project <Project ID>
+gcloud deployment-management Google Cloud Deployment Manager V2 API --enabled: true
+mkdir dminfra
+cd dminfra
+gsutil file createnew config.yaml 2000
+echo "resources:" >> config.yaml
+echo "imports:" >> config.yaml
+echo "- path: instance-template.jinja" >> config.yaml
+echo "# Create the auto-mode network" >> config.yaml
+echo "- name: mynetwork" >> config.yaml
+echo "  type: compute.v1.network" >> config.yaml
+echo "  properties:" >> config.yaml
+echo "    #RESOURCE properties go here" >> config.yaml
+gcloud deployment-manager types list | grep network
+echo "    autoCreateSubnetworks: true" >> config.yaml
+echo "# Create the firewall rule" >> config.yaml
+echo "- name: mynetwork-allow-http-ssh-rdp-icmp" >> config.yaml
+echo "  type: compute.v1.firewall" >> config.yaml
+echo "  properties:" >> config.yaml
+echo "    #RESOURCE properties go here" >> config.yaml
+gcloud deployment-manager types list | grep firewall
+echo "  network: $(ref.mynetwork.selfLink)" >> config.yaml
+echo "  sourceRanges: ["0.0.0.0/0"]" >> config.yaml
+echo "  allowed:" >> config.yaml
+echo "  - IPProtocol: TCP" >> config.yaml
+echo "    ports: [22, 80, 3389]" >> config.yaml
+echo "  - IPProtocol: ICMP" >> config.yaml
+gsutil file createnew instance-template.jinja 2000
+echo "resources:" >> instance-template.jinja
+echo "- name: {{ env["name"] }}" >> instance-template.jinja
+echo "  type: compute.v1.instance" >> instance-template.jinja
+echo "  properties:" >> instance-template.jinja
+echo "    #RESOURCE properties go here" >> instance-template.jinja
+gcloud deployment-manager types list | grep instance
+echo "     machineType: zones/{{ properties["zone"] }}/machineTypes/{{ properties["machineType"] }}" >> instance-template.jinja
+echo "     zone: {{ properties["zone"] }}" >> instance-template.jinja
+echo "     networkInterfaces:" >> instance-template.jinja
+echo "      - network: {{ properties["network"] }}" >> instance-template.jinja
+echo "        subnetwork: {{ properties["subnetwork"] }}" >> instance-template.jinja
+echo "        accessConfigs::" >> instance-template.jinja
+echo "        - name: External NAT" >> instance-template.jinja
+echo "          type: ONE_TO_ONE_NAT" >> instance-template.jinja
+echo "     disks:" >> instance-template.jinja
+echo "      - deviceName: {{ env["name"] }}" >> instance-template.jinja
+echo "        type: PERSISTENT" >> instance-template.jinja
+echo "        boot: true" >> instance-template.jinja
+echo "        autoDelete: true" >> instance-template.jinja
+echo "        initializeParams:" >> instance-template.jinja
+echo "          sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/family/debian-9" >> instance-template.jinja
+echo "# Create the mynet-us-vm instance" >> config.yaml
+echo "- name: mynet-us-vm" >> config.yaml
+echo "  type: instance-template.jinja" >> config.yaml
+echo "  properties:" >> config.yaml
+echo "    zone: us-central1-a" >> config.yaml
+echo "    machineType: n1-standard-1" >> config.yaml
+echo "    network: $(ref.mynetwork.selfLink)" >> config.yaml
+echo "    subnetwork: regions/us-central1/subnetworks/mynetwork" >> config.yaml
+echo "# Create the mynet-eu-vm instance" >> config.yaml
+echo "- name: mynet-eu-vm" >> config.yaml
+echo "  type: instance-template.jinja" >> config.yaml
+echo "  properties:" >> config.yaml
+echo "    zone: europe-west1-d" >> config.yaml
+echo "    machineType: n1-standard-1" >> config.yaml
+echo "    network: $(ref.mynetwork.selfLink) " >> config.yaml
+echo "    subnetwork: regions/europe-west1/subnetworks/mynetwork" >> config.yaml
+gcloud deployment-manager deployments create dminfra --config=config.yaml --preview
+gcloud deployment-manager deployments update dminfra
+gcloud network management info
+gcloud compute instances info
+gcloud compute instances mynet-us-vm init
+ping -c 3 <Enter mynet-eu-vm's internal IP here>

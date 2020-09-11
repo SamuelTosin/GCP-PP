@@ -1,0 +1,20 @@
+https://plrsig.ht/3aZrtLP
+
+gcloud config set project <Project ID>
+gcloud deployment-management Cloud Deployment Manager v2 API --enabled: true
+gcloud deployment-management Cloud Runtime Configuration API --enabled: true
+gcloud deployment-management Cloud Monitoring API --enabled: true
+export MY_ZONE=us-central1-a
+gsutil cp gs://cloud-training/gcpfcoreinfra/mydeploy.yaml mydeploy.yaml
+sed -i -e "s/PROJECT_ID/$DEVSHELL_PROJECT_ID/" mydeploy.yaml
+sed -i -e "s/ZONE/$MY_ZONE/" mydeploy.yaml
+cat mydeploy.yaml
+gcloud deployment-manager deployments create my-first-depl --config mydeploy.yaml
+gcloud compute instances info
+nano mydeploy.yaml
+value: "apt-get update; apt-get install nginx-light -y"
+gcloud deployment-manager deployments update my-first-depl --config mydeploy.yaml
+gcloud compute instances my-vm info
+gcloud compute instances my-vm init
+dd if=/dev/urandom | gzip -9 >> /dev/null &
+kill %1
